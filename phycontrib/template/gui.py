@@ -6,7 +6,7 @@
 #------------------------------------------------------------------------------
 # Imports
 #------------------------------------------------------------------------------
-
+import pdb
 import logging
 from operator import itemgetter
 import os.path as op
@@ -109,6 +109,11 @@ class TemplateController(EventEmitter):
                      'get_best_channel',
                      'get_best_channels',
                      'get_probe_depth',
+                     'get_real_amplitude',
+                     'get_violation_rate',
+                     'get_noise_ratioz',
+                     'get_ratio',
+                     'get_firing_rate',
                      )
         cached = ('_get_waveforms',
                   '_get_template_waveforms',
@@ -144,6 +149,12 @@ class TemplateController(EventEmitter):
         def on_create_cluster_views():
             supervisor.add_column(self.get_best_channel, name='channel')
             supervisor.add_column(self.get_probe_depth, name='depth')
+            supervisor.add_column(self.get_real_amplitude,name='amp')
+            #supervisor.add_column(self.get_noise_estimate,name='N')
+            supervisor.add_column(self.get_noise_ratioz,name='Amp.o.N')
+            supervisor.add_column(self.get_ratio,name='Bin1.o.M')
+            supervisor.add_column(self.get_firing_rate,name='FR')
+            #supervisor.add_column(self.get_violation_rate, name='vioRate')
 
             @supervisor.actions.add(shortcut='shift+ctrl+k')
             def split_init(cluster_ids=None):
@@ -216,6 +227,59 @@ class TemplateController(EventEmitter):
         """Return the best channel of a given cluster."""
         template_id = self.get_template_for_cluster(cluster_id)
         return self.model.get_template(template_id).best_channel
+    
+    def get_real_amplitude(self,cluster_id):
+        waveforms=self._get_mean_waveforms(cluster_id)
+        amp=waveforms.data[0,:,0].max()-waveforms.data[0,:,0].min()
+        return amp
+    
+    def get_violation_rate(self,cluster_id):
+        thresh=0.002
+        spt=self._get_spike_times(cluster_id=cluster_id, load_all=True)
+        isi=np.diff(spt.data)
+        violation=np.count_nonzero(isi<=thresh)
+        try:
+            rate=violation*1.0/len(isi)
+        except:
+            print('cannot calculate vio rate for cluster: ' + str(cluster_id))
+            rate = float('nan')
+        return rate
+    
+    def get_violation_rate_threshold(self,cluster_id):
+        """based on a ref period of 0.002s, formula from Hill et al 2011 """
+        ref_period=0.002
+        fp_rate=0.05
+        T=self.model.duration
+        N=self.supervisor.n_spikes(cluster_id)
+        R=2*ref_period*N*(1-fp_rate)*fp_rate/T
+        return R
+    
+    def get_noise_estimate(self,cluster_id):
+        """"""
+        
+        aa=self._get_waveforms(cluster_id)
+        pre=aa.data[:,0:25,0] #bc best channel is always first;
+        pre=pre.flatten()
+        
+        return pre.std()
+    def get_noise_ratioz(self,cluster_id):
+        ratio = self.get_real_amplitude(cluster_id)/self.get_noise_estimate(cluster_id)
+        #str(f'{ratio:.1f}')
+        return np.around(ratio,1)
+    
+    def get_firing_rate(self,cluster_id):
+        T=self.model.duration
+        N=self.supervisor.n_spikes(cluster_id)
+        R = N/T
+        return R
+    
+    def get_ratio(self,cluster_id):
+        cgr=self._get_correlograms([cluster_id],0.001,0.05)
+        vio_bin = range(26,27) 
+        bin1=cgr[0,0,vio_bin].sum()
+        ma=cgr.max()
+        R=bin1/ma
+        return R 
 
     def get_best_channels(self, cluster_id):
         """Return the best channels of a given cluster."""
@@ -574,6 +638,27 @@ def _run(params):  # pragma: no cover
     controller = TemplateController(**params)
     gui = controller.create_gui()
     gui.show()
+    #pdb.set_trace()
+    gd=controller.model.metadata['group']
+    gtable = controller.supervisor.cluster_view
+    outfile = open('tempData.txt','w')
+    #pdb.set_trace()
+    header = gtable._get_row(list(gd.keys())[0])
+    headermsg = ''
+    for gid,gel in header.items():
+        headermsg=headermsg +gid +','
+    outfile.write(headermsg.strip(', ')+'\n')
+        
+    for icluster in gd.keys():
+        grow = gtable._get_row(icluster)
+
+        msg=''
+        #pdb.set_trace()
+        for gid,gel in grow.items():
+            msg=msg + str(gel) +', '
+
+        outfile.write(msg.strip(', ')+'\n')
+    outfile.close()
     run_app()
     gui.close()
     del gui
