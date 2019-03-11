@@ -65,13 +65,7 @@ class TemplateFeatureView(ScatterView):
 
 
 class AmplitudeView(ScatterView):
-    def _plot_points(self, bunchs, data_bounds):
-        super(AmplitudeView, self)._plot_points(bunchs, data_bounds)
-        liney = 1.
-        self.lines(pos=[[data_bounds[0], liney, data_bounds[2], liney]],
-                   data_bounds=data_bounds,
-                   color=(1., 1., 1., .5),
-                   )
+    pass
 
 
 #------------------------------------------------------------------------------
@@ -142,6 +136,7 @@ class TemplateController(object):
         supervisor = Supervisor(spike_clusters=self.model.spike_clusters,
                                 cluster_groups=cluster_groups,
                                 cluster_metrics=cluster_metrics,
+                                cluster_labels=self.model.metadata,
                                 similarity=self.similarity,
                                 new_cluster_id=new_cluster_id,
                                 context=self.context,
@@ -173,6 +168,11 @@ class TemplateController(object):
             # Save cluster metadata.
             for name, values in labels:
                 self.model.save_metadata(name, values)
+            # Save mean waveforms.
+            cluster_ids = self.supervisor.clustering.cluster_ids
+            mean_waveforms = {cluster_id: self._get_mean_waveforms(cluster_id)
+                              for cluster_id in cluster_ids}
+            self.model.save_mean_waveforms(mean_waveforms)
 
         return supervisor
 
@@ -561,15 +561,34 @@ class TemplateController(object):
         self.supervisor.attach(gui)
 
         self.add_waveform_view(gui)
+
         if self.model.traces is not None:
             self.add_trace_view(gui)
+        else:
+            logger.warning(
+                "The raw data file is not available, the trace view won't be displayed.")
+
         if self.model.features is not None:
             self.add_feature_view(gui)
+        else:
+            logger.warning(
+                "Features file is not available, the feature view won't be displayed.")
+
         if self.model.template_features is not None:
             self.add_template_feature_view(gui)
+        else:
+            logger.warning(
+                "Template feature file is not available, "
+                "the template feature view won't be displayed.")
+
         self.add_correlogram_view(gui)
+
         if self.model.amplitudes is not None:
             self.add_amplitude_view(gui)
+        else:
+            logger.warning(
+                "The amplitude file is not available, the amplitude view won't be displayed.")
+
         self.add_probe_view(gui)
 
         # Save the memcache when closing the GUI.
