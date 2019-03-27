@@ -635,30 +635,52 @@ class TemplateController(EventEmitter):
 #------------------------------------------------------------------------------
 
 def _run(params):  # pragma: no cover
+    import matplotlib.pyplot as plt
     controller = TemplateController(**params)
     gui = controller.create_gui()
+    #pdb.set_trace()
+#    try:
+#        gd=controller.model.metadata['KSLabel']
+#    except:
+#        gd=controller.model.metadata['group']
+#        
+#    for cluid in gd.keys():
+#        try:
+#            waveforms=controller._get_mean_waveforms(cluid)
+#            all_waveforms=controller._get_waveforms(cluid)
+#            data=all_waveforms.data[:,:,1].transpose();
+#            plt.plot(data,color='g')
+#            plt.plot(waveforms.data[0,:,0],color='b',label='mean')
+#            template_waveforms=controller._get_template_waveforms(cluid)
+#            plt.plot(template_waveforms.data[0,:,0],color='r',label='template')
+#            plt.legend()
+#            plt.title(cluid)
+#            #pdb.set_trace()
+#            plt.savefig('waveform_%d.png' % cluid)
+#            plt.close()
+#        except:
+#            pass
+#    gd=controller.model.metadata['group']
+#    gtable = controller.supervisor.cluster_view
+#    outfile = open('tempData.txt','w')
+#    #pdb.set_trace()
+#    header = gtable._get_row(list(gd.keys())[0])
+#    headermsg = ''
+#    for gid,gel in header.items():
+#        headermsg=headermsg +gid +','
+#    outfile.write(headermsg.strip(', ')+'\n')
+#        
+#    for icluster in gd.keys():
+#        grow = gtable._get_row(icluster)
+#
+#        msg=''
+#        #pdb.set_trace()
+#        for gid,gel in grow.items():
+#            msg=msg + str(gel) +', '
+#
+#        outfile.write(msg.strip(', ')+'\n')
+#    outfile.close()
     gui.show()
-    #pdb.set_trace()
-    gd=controller.model.metadata['group']
-    gtable = controller.supervisor.cluster_view
-    outfile = open('tempData.txt','w')
-    #pdb.set_trace()
-    header = gtable._get_row(list(gd.keys())[0])
-    headermsg = ''
-    for gid,gel in header.items():
-        headermsg=headermsg +gid +','
-    outfile.write(headermsg.strip(', ')+'\n')
-        
-    for icluster in gd.keys():
-        grow = gtable._get_row(icluster)
-
-        msg=''
-        #pdb.set_trace()
-        for gid,gel in grow.items():
-            msg=msg + str(gel) +', '
-
-        outfile.write(msg.strip(', ')+'\n')
-    outfile.close()
     run_app()
     gui.close()
     del gui
